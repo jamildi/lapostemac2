@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+build/
+build_spec/
+dist/
+playwright_browsers/
+profil_laposte_web/
+screenshots_erreurs/
+uploads/

@@ -1,0 +1,89 @@
+name: Build and test La Poste Bot Mac
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/laposte-mac-smoke.yml"
+      - "app_laposte.py"
+      - "build_mac_app.sh"
+      - "requirements-build.txt"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/laposte-mac-smoke.yml"
+      - "app_laposte.py"
+      - "build_mac_app.sh"
+      - "requirements-build.txt"
+      - "README.md"
+
+jobs:
+  mac-build:
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Compile source
+        run: python -m py_compile app_laposte.py
+
+      - name: Import source
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path("app_laposte.py")
+          spec = importlib.util.spec_from_file_location("app_laposte_mac", path)
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          assert module.VERSION == "2.4.0"
+          assert module.SYSTEME in {"Darwin", "Windows", "Linux"}
+          assert hasattr(module, "run_bot")
+          assert hasattr(module, "browser_smoke_test")
+          print("IMPORT_OK", module.VERSION)
+          PY
+
+      - name: Validate build script syntax
+        run: bash -n build_mac_app.sh
+
+      - name: Build Mac app bundle
+        run: |
+          chmod +x build_mac_app.sh
+          ./build_mac_app.sh
+
+      - name: Smoke test compiled app
+        run: |
+          "./dist/La Poste Bot.app/Contents/MacOS/La Poste Bot" --smoke-test
+
+      - name: Browser smoke test compiled app
+        run: |
+          "./dist/La Poste Bot.app/Contents/MacOS/La Poste Bot" --browser-smoke-test
+
+      - name: Package Mac app artifact
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent "La Poste Bot.app" "La Poste Bot Mac.zip"
+
+      - name: Upload Mac app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: la-poste-bot-mac-app
+          path: dist/La Poste Bot Mac.zip
