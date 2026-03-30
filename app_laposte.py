@@ -4,6 +4,7 @@ import sys
 import time
 import queue
 import asyncio
+import shutil
 import subprocess
 import threading
 import platform
@@ -32,18 +33,15 @@ else:
 
 if getattr(sys, 'frozen', False) and SYSTEME == "Darwin":
     DATA_DIR = HOME / "Library" / "Application Support" / APP_NAME
-    BUNDLED_BROWSERS_DIR = APP_DIR / "playwright_browsers"
+    BUNDLED_BROWSERS_ARCHIVE = APP_DIR / "playwright_browsers.zip"
 else:
     DATA_DIR = APP_DIR
-    BUNDLED_BROWSERS_DIR = None
+    BUNDLED_BROWSERS_ARCHIVE = None
 
 PROFIL = DATA_DIR / "profil_laposte_web"
 
 # Navigateurs Playwright stockés à côté de l'app (portable)
-if BUNDLED_BROWSERS_DIR and any(BUNDLED_BROWSERS_DIR.glob("chromium-*")):
-    BROWSERS_DIR = BUNDLED_BROWSERS_DIR
-else:
-    BROWSERS_DIR = DATA_DIR / "playwright_browsers"
+BROWSERS_DIR = DATA_DIR / "playwright_browsers"
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(BROWSERS_DIR)
 
 EMAIL_PAR_DEFAUT = "siwaksmile@gmail.com"
@@ -60,8 +58,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(exist_ok=True)
 PROFIL.mkdir(exist_ok=True)
 SCREENSHOTS_DIR.mkdir(exist_ok=True)
-if not (BUNDLED_BROWSERS_DIR and BUNDLED_BROWSERS_DIR == BROWSERS_DIR and BROWSERS_DIR.exists()):
-    BROWSERS_DIR.mkdir(exist_ok=True)
+BROWSERS_DIR.mkdir(exist_ok=True)
 
 VERSION = "2.4.0"
 
@@ -86,9 +83,27 @@ def navigateur_installe() -> bool:
     return any(BROWSERS_DIR.glob("chromium-*"))
 
 
+def extraire_navigateurs_embarques() -> bool:
+    """Extrait Chromium embarque depuis une archive incluse dans l'app."""
+    if not BUNDLED_BROWSERS_ARCHIVE or not BUNDLED_BROWSERS_ARCHIVE.exists():
+        return False
+
+    try:
+        print("  Extraction de Chromium embarque...", flush=True)
+        shutil.unpack_archive(str(BUNDLED_BROWSERS_ARCHIVE), extract_dir=str(DATA_DIR))
+        return navigateur_installe()
+    except Exception as e:
+        print(f"  Erreur extraction Chromium embarque : {e}", flush=True)
+        return False
+
+
 def installer_navigateur():
     """Installe Chromium automatiquement au premier lancement."""
     if navigateur_installe():
+        return True
+
+    if extraire_navigateurs_embarques():
+        print("  Chromium embarque extrait avec succes !", flush=True)
         return True
 
     print("=" * 50, flush=True)
@@ -137,7 +152,7 @@ def installer_navigateur():
 
 async def browser_smoke_test():
     """Valide que Playwright et Chromium fonctionnent reellement."""
-    if not navigateur_installe():
+    if not navigateur_installe() and not installer_navigateur():
         raise RuntimeError(f"Chromium introuvable dans {BROWSERS_DIR}")
 
     async with async_playwright() as p:

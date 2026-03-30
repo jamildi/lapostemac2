@@ -16,6 +16,9 @@ mkdir -p "$PLAYWRIGHT_BROWSERS_PATH"
 "$PYTHON_BIN" -m pip install -r "$APP_DIR/requirements-build.txt"
 "$PYTHON_BIN" -m playwright install chromium
 
+rm -f "$APP_DIR/playwright_browsers.zip"
+ditto -c -k --sequesterRsrc --keepParent "$PLAYWRIGHT_BROWSERS_PATH" "$APP_DIR/playwright_browsers.zip"
+
 pyinstaller \
   --noconfirm \
   --clean \
@@ -25,7 +28,7 @@ pyinstaller \
   --distpath "$APP_DIR/dist" \
   --workpath "$APP_DIR/build" \
   --specpath "$APP_DIR/build_spec" \
-  --add-data "$PLAYWRIGHT_BROWSERS_PATH:playwright_browsers" \
+  --add-data "$APP_DIR/playwright_browsers.zip:." \
   --collect-all flask \
   --collect-all jinja2 \
   --collect-all werkzeug \

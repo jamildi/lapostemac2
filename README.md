@@ -7,7 +7,7 @@ Ce depot sert a construire une vraie application macOS `La Poste Bot.app` via Gi
 - double-clic sur une app Mac
 - pas de Terminal
 - pas de Python a installer sur le Mac utilisateur
-- Chromium embarque dans l'application compilee
+- Chromium embarque sous forme d'archive puis extrait au premier lancement
 
 ## Validation GitHub
 
